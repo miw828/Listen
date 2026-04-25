@@ -1,44 +1,77 @@
 import { useEffect, useState } from 'react';
 import Home from './Home.jsx';
-import { getCurrentSession, loginWithSpotify, logout, supabase } from '../supabase.js';
+import {
+  getFrontendConfigError,
+  getCurrentSession,
+  getSpotifySetupInstructions,
+  loginWithSpotify,
+  logout,
+  supabase
+} from '../supabase.js';
+import { syncProfileFromSession } from '../supabase.js';
+import './App.css';
 
+// App manages the Spotify connection state and passes auth actions down to the home screen.
 export default function App() {
+  const initialConfigError = getFrontendConfigError();
+  const setupInstructions = getSpotifySetupInstructions();
   const [session, setSession] = useState(null);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(
+    initialConfigError ? `${initialConfigError} ${setupInstructions.join(' ')}` : ''
+  );
 
   useEffect(() => {
     let active = true;
 
+    if (initialConfigError) {
+      return undefined;
+    }
+
+    // loadSession restores an existing Supabase session and syncs the matching profile record.
     async function loadSession() {
       try {
         const currentSession = await getCurrentSession();
+        if (currentSession) {
+          await syncProfileFromSession();
+        }
         if (active) setSession(currentSession);
       } catch (error) {
-        if (active) setStatus(error.message);
+        if (active) {
+          setStatus(`${error.message} ${setupInstructions.join(' ')}`);
+        }
       }
     }
 
     loadSession();
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+    const { data } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      try {
+        if (nextSession) {
+          await syncProfileFromSession();
+        }
+        setSession(nextSession);
+      } catch (error) {
+        setStatus(error.message);
+      }
     });
 
     return () => {
       active = false;
       data.subscription.unsubscribe();
     };
-  }, []);
+  }, [initialConfigError, setupInstructions]);
 
-  async function handleLogin() {
+  // handleConnectSpotify starts the Spotify OAuth flow for the current browser session.
+  async function handleConnectSpotify() {
     try {
       setStatus('');
       await loginWithSpotify();
     } catch (error) {
-      setStatus(error.message);
+      setStatus(`${error.message} ${getSpotifySetupInstructions().join(' ')}`);
     }
   }
 
+  // handleLogout disconnects the current session from the app.
   async function handleLogout() {
     try {
       setStatus('');
@@ -51,7 +84,11 @@ export default function App() {
   return (
     <>
       {status && <p role="alert">{status}</p>}
-      <Home session={session} onLogin={handleLogin} onLogout={handleLogout} />
+      <Home
+        session={session}
+        onConnectSpotify={handleConnectSpotify}
+        onLogout={handleLogout}
+      />
     </>
   );
 }

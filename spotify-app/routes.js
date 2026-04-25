@@ -9,11 +9,13 @@ const listeningFields =
   'id, user_id, track_id, track_name, artist_name, album_art, listened_at';
 const followFields = 'follower_id, following_id';
 
+// sendSupabaseError normalizes database errors into JSON responses for the API.
 function sendSupabaseError(res, error, fallbackStatus = 500) {
   const status = Number(error?.status) || fallbackStatus;
   return res.status(status).json({ error: error.message });
 }
 
+// pickDefined copies only the allowed keys that were actually provided by the client.
 function pickDefined(source = {}, fields) {
   return fields.reduce((values, field) => {
     if (source[field] !== undefined) values[field] = source[field];
@@ -21,7 +23,7 @@ function pickDefined(source = {}, fields) {
   }, {});
 }
 
-// profiles
+// List all saved profiles.
 router.get('/profiles', async (req, res) => {
   const supabase = getSupabase(req);
   const { data, error } = await supabase
@@ -33,6 +35,7 @@ router.get('/profiles', async (req, res) => {
   return res.json(data);
 });
 
+// Fetch one profile by user id.
 router.get('/profiles/:id', async (req, res) => {
   const supabase = getSupabase(req);
   const { data, error } = await supabase
@@ -46,6 +49,7 @@ router.get('/profiles/:id', async (req, res) => {
   return res.json(data);
 });
 
+// Create a profile record manually when needed.
 router.post('/profiles', async (req, res) => {
   const profile = pickDefined(req.body, [
     'id',
@@ -69,6 +73,7 @@ router.post('/profiles', async (req, res) => {
   return res.status(201).json(data);
 });
 
+// Update the editable fields for an existing profile.
 router.patch('/profiles/:id', async (req, res) => {
   const updates = pickDefined(req.body, [
     'spotify_username',
@@ -93,7 +98,7 @@ router.patch('/profiles/:id', async (req, res) => {
   return res.json(data);
 });
 
-// listening activity
+// Return recent listening activity, optionally filtered to one user.
 router.get('/listening', async (req, res) => {
   const supabase = getSupabase(req);
   const limit = Math.min(Number(req.query.limit) || 50, 100);
@@ -113,6 +118,7 @@ router.get('/listening', async (req, res) => {
   return res.json(data);
 });
 
+// Save a new listening activity record.
 router.post('/listening', async (req, res) => {
   const activity = pickDefined(req.body, [
     'user_id',
@@ -138,6 +144,7 @@ router.post('/listening', async (req, res) => {
   return res.status(201).json(data);
 });
 
+// Delete one listening activity record by id.
 router.delete('/listening/:id', async (req, res) => {
   const supabase = getSupabase(req);
   const { data, error } = await supabase
@@ -152,7 +159,7 @@ router.delete('/listening/:id', async (req, res) => {
   return res.json({ message: 'Listening activity deleted', activity: data });
 });
 
-// follows
+// createFollow validates and inserts one follow relationship.
 async function createFollow(req, res, follow) {
   if (!follow.follower_id || !follow.following_id) {
     return res
@@ -175,6 +182,7 @@ async function createFollow(req, res, follow) {
   return res.status(201).json(data);
 }
 
+// List follow relationships, optionally filtered by follower.
 router.get('/following', async (req, res) => {
   const supabase = getSupabase(req);
   let query = supabase.from('follows').select(followFields);
@@ -189,11 +197,13 @@ router.get('/following', async (req, res) => {
   return res.json(data);
 });
 
+// Create a follow relationship from request body values.
 router.post('/following', async (req, res) => {
   const follow = pickDefined(req.body, ['follower_id', 'following_id']);
   return createFollow(req, res, follow);
 });
 
+// Create a follow relationship using a path param for the followed user.
 router.post('/following/:following_id', async (req, res) => {
   const follow = {
     follower_id: req.body?.follower_id,
@@ -203,6 +213,7 @@ router.post('/following/:following_id', async (req, res) => {
   return createFollow(req, res, follow);
 });
 
+// Remove a follow relationship between two users.
 router.delete('/following/:following_id', async (req, res) => {
   const { follower_id: followerId } = req.body ?? {};
   const { following_id: followingId } = req.params;

@@ -1,0 +1,12 @@
+button{
+    border-radius: 20px; 
+
+}
+
+body{
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    
+}

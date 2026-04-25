@@ -1,19 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const viteEnv = import.meta.env ?? {};
-
-const supabaseUrl =
-  viteEnv.VITE_SUPABASE_URL ??
-  viteEnv.NEXT_PUBLIC_SUPABASE_URL;
-
-const supabaseKey =
-  viteEnv.VITE_SUPABASE_PUBLISHABLE_KEY ??
-  viteEnv.VITE_SUPABASE_ANON_KEY ??
-  viteEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
-
-const spotifyScopes = [
+const defaultSpotifyScopes = [
   'user-read-currently-playing',
   'user-read-playback-state',
   'user-read-recently-played',
@@ -21,35 +9,150 @@ const spotifyScopes = [
   'user-library-modify'
 ].join(' ');
 
+const supabaseUrl = viteEnv.VITE_SUPABASE_URL ?? viteEnv.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseKey =
+  viteEnv.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  viteEnv.VITE_SUPABASE_ANON_KEY ??
+  viteEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  '';
+const spotifyRedirectUri =
+  viteEnv.VITE_SPOTIFY_REDIRECT_URI ?? `${window.location.origin}/`;
+const spotifyScopes = viteEnv.VITE_SPOTIFY_SCOPES ?? defaultSpotifyScopes;
+
+// getMissingFrontendConfig lists any Vite env values required before Spotify auth can work.
+function getMissingFrontendConfig() {
+  const missing = [];
+
+  if (!supabaseUrl) missing.push('VITE_SUPABASE_URL');
+  if (!supabaseKey) missing.push('VITE_SUPABASE_PUBLISHABLE_KEY');
+  if (!spotifyRedirectUri) missing.push('VITE_SPOTIFY_REDIRECT_URI');
+
+  return missing;
+}
+
+// assertFrontendConfig stops auth calls early if the frontend env is incomplete.
+function assertFrontendConfig() {
+  const missing = getMissingFrontendConfig();
+
+  if (missing.length > 0) {
+    throw new Error(`Missing frontend config: ${missing.join(', ')}`);
+  }
+}
+
+// getFrontendConfigError returns a readable startup error for the UI.
+export function getFrontendConfigError() {
+  const missing = getMissingFrontendConfig();
+  return missing.length > 0 ? `Missing frontend config: ${missing.join(', ')}` : '';
+}
+
+export const supabase =
+  getMissingFrontendConfig().length === 0 ? createClient(supabaseUrl, supabaseKey) : null;
+export const spotifyConfig = {
+  redirectUri: spotifyRedirectUri,
+  scopes: spotifyScopes
+};
+
+// getSpotifySetupInstructions gives setup guidance when auth configuration is missing.
+export function getSpotifySetupInstructions() {
+  return [
+    'Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to your Vite env file.',
+    `Add VITE_SPOTIFY_REDIRECT_URI=${spotifyRedirectUri} to your Vite env file.`,
+    'In Supabase Auth providers, enable Spotify and add your Spotify client ID and client secret there.',
+    `In the Spotify developer dashboard, add ${spotifyRedirectUri} as an allowed redirect URI.`
+  ];
+}
+
+// buildProfileFromUser maps Supabase auth metadata into the app's profile table shape.
+function buildProfileFromUser(user) {
+  const userMetadata = user?.user_metadata ?? {};
+  const appMetadata = user?.app_metadata ?? {};
+
+  return {
+    id: user.id,
+    spotify_username:
+      userMetadata.preferred_username ??
+      userMetadata.user_name ??
+      appMetadata.provider ??
+      null,
+    display_name:
+      userMetadata.full_name ||
+      userMetadata.name ||
+      userMetadata.preferred_username ||
+      null,
+    avatar_url: userMetadata.avatar_url ?? null
+  };
+}
+
+// loginWithSpotify starts OAuth with the Spotify provider configured in Supabase.
 export const loginWithSpotify = async () => {
+  assertFrontendConfig();
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'spotify',
-    options: { scopes: spotifyScopes }
+    options: {
+      scopes: spotifyScopes,
+      redirectTo: spotifyRedirectUri
+    }
   });
   if (error) throw error;
 };
 
+// logout clears the current Supabase auth session in the browser.
 export const logout = async () => {
+  assertFrontendConfig();
+
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 };
+// getCurrentSession reads the active Supabase session from the browser.
 export const getCurrentSession = async () => {
+  assertFrontendConfig();
+
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   return data.session;
 };
 
+// getCurrentUser returns the authenticated Supabase user record.
 export const getCurrentUser = async () => {
+  assertFrontendConfig();
+
   const { data, error } = await supabase.auth.getUser();
   if (error) throw error;
   return data.user;
 };
 
-export const getSpotifyToken = async () => {
-  const session = await getCurrentSession();
-  return session?.provider_token;
+// syncProfileFromSession upserts the connected Spotify user's profile into the database.
+export const syncProfileFromSession = async () => {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const profile = buildProfileFromUser(user);
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert(profile, { onConflict: 'id' })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return data;
 };
 
+// getSpotifyToken pulls the provider access token out of the Supabase session.
+export const getSpotifyToken = async () => {
+  const session = await getCurrentSession();
+  if (!session?.provider_token) {
+    throw new Error(
+      'Spotify is not fully connected yet. Add the Spotify client ID and secret in Supabase, then sign in again.'
+    );
+  }
+
+  return session.provider_token;
+};
+
+// spotifyFetch sends authenticated requests to Spotify's Web API.
 async function spotifyFetch(path, options = {}) {
   const token = await getSpotifyToken();
 
@@ -71,14 +174,17 @@ async function spotifyFetch(path, options = {}) {
   return response.json();
 }
 
+// fetchCurrentlyPlaying returns the track that Spotify says is playing right now.
 export const fetchCurrentlyPlaying = async () => {
   return spotifyFetch('/me/player/currently-playing');
 };
 
+// fetchRecentlyPlayed loads the user's recent Spotify listening history.
 export const fetchRecentlyPlayed = async (limit = 10) => {
   return spotifyFetch(`/me/player/recently-played?limit=${limit}`);
 };
 
+// saveCurrentTrack stores the active Spotify song in the listening_activity table.
 export const saveCurrentTrack = async () => {
   const track = await fetchCurrentlyPlaying();
   if (!track?.item) return null;
@@ -105,6 +211,7 @@ export const saveCurrentTrack = async () => {
   return data;
 };
 
+// getFriendsFeed returns recent listening activity for the users this account follows.
 export const getFriendsFeed = async () => {
   const user = await getCurrentUser();
   if (!user) return [];
@@ -132,6 +239,7 @@ export const getFriendsFeed = async () => {
   return feed ?? [];
 };
 
+// commentOnActivity writes a new comment for a listening activity record.
 export const commentOnActivity = async (activityId, body) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Login is required to comment');
@@ -150,6 +258,7 @@ export const commentOnActivity = async (activityId, body) => {
   return data;
 };
 
+// likeActivity records a like for a listening activity.
 export const likeActivity = async (activityId) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Login is required to like music');
@@ -167,6 +276,7 @@ export const likeActivity = async (activityId) => {
   return data;
 };
 
+// unlikeActivity removes the current user's like from a listening activity.
 export const unlikeActivity = async (activityId) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Login is required to unlike music');
@@ -180,6 +290,7 @@ export const unlikeActivity = async (activityId) => {
   if (error) throw error;
 };
 
+// saveTrackToSpotifyLibrary sends a track from the app into the user's Spotify library.
 export const saveTrackToSpotifyLibrary = async (trackId) => {
   await spotifyFetch(`/me/tracks?ids=${encodeURIComponent(trackId)}`, {
     method: 'PUT'

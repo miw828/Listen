@@ -35,6 +35,7 @@ if (!supabaseUrl || !supabaseKey) {
   );
 }
 
+// getSupabase creates a request-aware server client and forwards auth when needed.
 export function getSupabase(req) {
   const authHeader = usesServiceRole ? undefined : req.get?.('authorization');
   const headers = authHeader ? { Authorization: authHeader } : undefined;
@@ -47,13 +48,3 @@ export function getSupabase(req) {
     }
   });
 }
-
-// One note: normal PowerShell npm was blocked by execution policy, so use npm.cmd run build / npm.cmd run lint on this Windows setup.
-
-// Next useful steps:
-
-// Run npm.cmd run dev from spotify-app to test the app in-browser.
-// Confirm your Supabase env vars are in Vite format: VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.
-// Confirm your comment/like tables exist, since the UI now compiles but those actions depend on your database schema.
-
-// 8:19 PM
