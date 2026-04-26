@@ -140,6 +140,44 @@ export const syncProfileFromSession = async () => {
   return data;
 };
 
+// getAdminStats returns simple account details and listening totals for the connected user.
+export const getAdminStats = async () => {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, spotify_username, display_name, avatar_url, created_at')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profileError) throw profileError;
+
+  const { count, error: countError } = await supabase
+    .from('listening_activity')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id);
+
+  if (countError) throw countError;
+
+  const { data: latestActivity, error: latestError } = await supabase
+    .from('listening_activity')
+    .select('track_name, artist_name, listened_at')
+    .eq('user_id', user.id)
+    .order('listened_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestError) throw latestError;
+
+  return {
+    email: user.email ?? 'No email available',
+    profile,
+    totalTracksLogged: count ?? 0,
+    latestActivity
+  };
+};
+
 // getSpotifyToken pulls the provider access token out of the Supabase session.
 export const getSpotifyToken = async () => {
   const session = await getCurrentSession();

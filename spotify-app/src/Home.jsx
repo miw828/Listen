@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
-  commentOnActivity,
   fetchCurrentlyPlaying,
-  getFriendsFeed,
-  likeActivity,
+  getAdminStats,
   saveCurrentTrack,
-  saveTrackToSpotifyLibrary,
-  unlikeActivity
 } from '../supabase.js';
-import './Home.css'; 
+import './Home.css';
 
-// Home renders the connect flow, current track, and social activity for the connected user.
+// Home renders the Spotify connection flow, the current track, and the admin or user view.
 export default function Home({ session, onConnectSpotify, onLogout }) {
   const [showSettings, setShowSettings] = useState(false);
+  const [viewMode, setViewMode] = useState('user');
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('listen-settings');
     return saved
@@ -22,12 +19,10 @@ export default function Home({ session, onConnectSpotify, onLogout }) {
           color: 'green'
         };
   });
-  const [feed, setFeed] = useState([]);
-  const [comments, setComments] = useState({});
-  const [liked, setLiked] = useState({});
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(null);
+  const [adminStats, setAdminStats] = useState(null);
 
   const loggedIn = Boolean(session?.user);
 
@@ -36,14 +31,20 @@ export default function Home({ session, onConnectSpotify, onLogout }) {
     localStorage.setItem('listen-settings', JSON.stringify(settings));
   }, [settings]);
 
-  // This effect refreshes the current track and the friends feed while Spotify is connected.
+  // This effect applies the selected theme and color mode to the page.
+  useEffect(() => {
+    document.body.dataset.theme = settings.theme;
+    document.body.dataset.color = settings.color;
+  }, [settings]);
+
+  // This effect refreshes the current track and admin stats while Spotify is connected.
   useEffect(() => {
     if (!loggedIn) return undefined;
 
     let active = true;
 
-    // loadFeed fetches the user's current song, stores it, and refreshes friend activity.
-    async function loadFeed() {
+    // loadDashboard fetches the current song, saves it, and refreshes account stats.
+    async function loadDashboard() {
       setLoading(true);
       setStatus('');
 
@@ -54,8 +55,8 @@ export default function Home({ session, onConnectSpotify, onLogout }) {
         }
 
         await saveCurrentTrack();
-        const friendsFeed = await getFriendsFeed();
-        if (active) setFeed(friendsFeed);
+        const stats = await getAdminStats();
+        if (active) setAdminStats(stats);
       } catch (error) {
         if (active) setStatus(error.message);
       } finally {
@@ -63,8 +64,8 @@ export default function Home({ session, onConnectSpotify, onLogout }) {
       }
     }
 
-    loadFeed();
-    const interval = setInterval(loadFeed, 30000);
+    loadDashboard();
+    const interval = setInterval(loadDashboard, 30000);
 
     return () => {
       active = false;
@@ -78,52 +79,11 @@ export default function Home({ session, onConnectSpotify, onLogout }) {
     setSettings((current) => ({ ...current, [name]: value }));
   }
 
-  // handleComment posts a comment for one activity card.
-  async function handleComment(activityId) {
-    const body = comments[activityId]?.trim();
-    if (!body) return;
-
-    try {
-      await commentOnActivity(activityId, body);
-      setComments((current) => ({ ...current, [activityId]: '' }));
-      setStatus('Comment posted.');
-    } catch (error) {
-      setStatus(error.message);
-    }
-  }
-
-  // handleLike toggles the like state for a friend's listening activity.
-  async function handleLike(activityId) {
-    try {
-      if (liked[activityId]) {
-        await unlikeActivity(activityId);
-        setLiked((current) => ({ ...current, [activityId]: false }));
-        setStatus('Like removed.');
-      } else {
-        await likeActivity(activityId);
-        setLiked((current) => ({ ...current, [activityId]: true }));
-        setStatus('Liked.');
-      }
-    } catch (error) {
-      setStatus(error.message);
-    }
-  }
-
-  // handleSave adds a track from the feed to the user's Spotify library.
-  async function handleSave(trackId) {
-    try {
-      await saveTrackToSpotifyLibrary(trackId);
-      setStatus('Saved to your Spotify library.');
-    } catch (error) {
-      setStatus(error.message);
-    }
-  }
-
   return (
-    <main data-theme={settings.theme} data-color={settings.color}>
-      <header>
+    <main className="home-shell" data-theme={settings.theme} data-color={settings.color}>
+      <header className="topbar">
         <h1>Welcome to Listen!</h1>
-        <nav aria-label="Account actions">
+        <nav className="topbar-actions" aria-label="Account actions">
           <button type="button" onClick={() => setShowSettings((open) => !open)}>
             Settings
           </button>
@@ -140,27 +100,28 @@ export default function Home({ session, onConnectSpotify, onLogout }) {
       </header>
 
       {showSettings && (
-        <section aria-label="Settings">
+        <section className="panel" aria-label="Settings">
           <h2>Settings</h2>
-          <label htmlFor="theme">Theme</label>
-          <select id="theme" name="theme" value={settings.theme} onChange={updateSetting}>
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+          <div className="settings-grid">
+            <label htmlFor="theme">Theme</label>
+            <select id="theme" name="theme" value={settings.theme} onChange={updateSetting}>
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
 
-          <label htmlFor="color">Color</label>
-          <select id="color" name="color" value={settings.color} onChange={updateSetting}>
-            <option value="green">Green</option>
-            <option value="blue">Blue</option>
-            <option value="pink">Pink</option>
-            <option value="yellow">Yellow</option>
-          </select>
+            <label htmlFor="color">Color</label>
+            <select id="color" name="color" value={settings.color} onChange={updateSetting}>
+              <option value="green">Green</option>
+              <option value="blue">Blue</option>
+              <option value="pink">Pink</option>
+            </select>
+          </div>
         </section>
       )}
 
       {!loggedIn && (
-        <section>
+        <section className="panel hero-panel">
           <h2>Connect to Spotify</h2>
           <p>Connect your Spotify account to see what you are listening to right now.</p>
           <button type="button" onClick={onConnectSpotify}>
@@ -171,12 +132,35 @@ export default function Home({ session, onConnectSpotify, onLogout }) {
 
       {loggedIn && (
         <>
-          <section aria-label="Currently playing">
+          <section className="panel" aria-label="Role view switcher">
+            <h2>Choose View</h2>
+            <div className="mode-switch">
+              <button
+                type="button"
+                className={viewMode === 'admin' ? 'active' : ''}
+                onClick={() => setViewMode('admin')}
+              >
+                Admin
+              </button>
+              <button
+                type="button"
+                className={viewMode === 'user' ? 'active' : ''}
+                onClick={() => setViewMode('user')}
+              >
+                User
+              </button>
+            </div>
+          </section>
+
+          <section className="panel" aria-label="Currently playing">
             <h2>Your Spotify Right Now</h2>
+            {loading && <p>Loading...</p>}
+            {status && <p role="status">{status}</p>}
             {currentTrack ? (
-              <article>
+              <article className="track-card">
                 {currentTrack.album?.images?.[0]?.url && (
                   <img
+                    className="album-art"
                     src={currentTrack.album.images[0].url}
                     alt={`${currentTrack.name} album art`}
                     width="120"
@@ -192,58 +176,29 @@ export default function Home({ session, onConnectSpotify, onLogout }) {
             )}
           </section>
 
-          <section aria-label="Friends listening feed">
-            <h2>Friends Listening</h2>
-            {loading && <p>Loading...</p>}
-            {status && <p role="status">{status}</p>}
-            {!loading && feed.length === 0 && <p>No friend activity yet.</p>}
+          {viewMode === 'admin' && (
+            <section className="panel" aria-label="Admin view">
+              <h2>Admin</h2>
+              <div className="stats-grid">
+                <div className="stat-item">
+                  <strong>Email</strong>
+                  <span>{adminStats?.email ?? session?.user?.email ?? 'No email available'}</span>
+                </div>
+                <div className="stat-item">
+                  <strong>Display Name</strong>
+                  <span>{adminStats?.profile?.display_name ?? 'Not set'}</span>
+                </div>
+                <div className="stat-item">
+                  <strong>Spotify Username</strong>
+                  <span>{adminStats?.profile?.spotify_username ?? 'Not available'}</span>
+                </div>
+              
+                
+              </div>
+            </section>
+          )}
 
-            {feed.map((activity) => (
-              <article key={activity.id}>
-                {activity.album_art && (
-                  <img
-                    src={activity.album_art}
-                    alt={`${activity.track_name} album art`}
-                    width="120"
-                    height="120"
-                  />
-                )}
-                <h3>{activity.track_name}</h3>
-                <p>{activity.artist_name}</p>
-                <p>
-                  {activity.profiles?.display_name ?? 'A friend'} listened on{' '}
-                  {new Date(activity.listened_at).toLocaleString()}
-                </p>
-
-                <button type="button" onClick={() => handleLike(activity.id)}>
-                  {liked[activity.id] ? 'Unlike' : 'Like'}
-                </button>
-                <button type="button" onClick={() => handleSave(activity.track_id)}>
-                  Save to library
-                </button>
-
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    handleComment(activity.id);
-                  }}
-                >
-                  <label htmlFor={`comment-${activity.id}`}>Comment</label>
-                  <input
-                    id={`comment-${activity.id}`}
-                    value={comments[activity.id] ?? ''}
-                    onChange={(event) =>
-                      setComments((current) => ({
-                        ...current,
-                        [activity.id]: event.target.value
-                      }))
-                    }
-                  />
-                  <button type="submit">Post</button>
-                </form>
-              </article>
-            ))}
-          </section>
+        
         </>
       )}
     </main>

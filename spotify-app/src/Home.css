@@ -1,12 +1,135 @@
-button{
-    border-radius: 20px; 
+:root {
+  --main-color: #f4f0ff;
+  --panel-color: #ffffff;
+  --text-color: #1f1f1f;
+  --border-color: #d9d4e5;
+  --accent-color: #6e8efb;
+}
 
+body {
+  margin: 0;
+  background: var(--main-color);
+  color: var(--text-color);
+  font-family: Arial, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+body[data-color='green'] {
+  --main-color: #0a3323;
+  --panel-color: #123f2d;
+  --text-color: #f7f4d5;
+  --border-color: #1c6a4d;
+  --accent-color: #105666;
+}
+
+body[data-color='blue'] {
+  --main-color: #12284b;
+  --panel-color: #1b3a69;
+  --text-color: #fff8e7;
+  --border-color: #5f8db8;
+  --accent-color: #8cc1e9;
+}
+
+body[data-color='pink'] {
+  --main-color: #f2afbc;
+  --panel-color: #f8d2db;
+  --text-color: #5d1622;
+  --border-color: #d47b8d;
+  --accent-color: #9e182b;
+}
+
+body[data-theme='dark'] {
+  --panel-color: rgba(0, 0, 0, 0.22);
+  --border-color: rgba(255, 255, 255, 0.2);
+}
+
+body[data-theme='light'] {
+  --panel-color: #ffffff;
+  color: black;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--border-color);
+  background: var(--panel-color);
+  color: var(--text-color);
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+main.home-shell {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.topbar-actions,
+.mode-switch {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.panel {
+  background: var(--panel-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.hero-panel {
+  text-align: center;
+}
+
+.settings-grid {
+  display: grid;
+  gap: 10px;
+  max-width: 280px;
+}
+
+.track-card {
+  display: grid;
+  gap: 8px;
+}
+
+.album-art {
+  border-radius: 10px;
+}
+
+.stats-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.stat-item {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mode-switch .active {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
 }
 
 body{
-    display: flex; 
-    align-items: center;
+    display: flex;
     justify-content: center;
-    text-align: center;
-    
 }
