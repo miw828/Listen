@@ -4,30 +4,43 @@
   --text-color: #1f1f1f;
   --border-color: #d9d4e5;
   --accent-color: #6e8efb;
+  --background-highlight: #ece4ff;
+  --muted-text-color: rgba(31, 31, 31, 0.72);
+  --panel-shadow: 0 14px 32px rgba(31, 31, 31, 0.08);
 }
 
 body {
   margin: 0;
-  background: var(--main-color);
+  background:
+    radial-gradient(circle at top, var(--background-highlight), transparent 48%),
+    linear-gradient(180deg, var(--main-color), var(--main-color));
   color: var(--text-color);
   font-family: Arial, sans-serif;
   transition: background-color 0.2s ease, color 0.2s ease;
+  display: flex;
+  justify-content: center;
 }
 
 body[data-color='green'] {
-  --main-color: #0a3323;
+  --main-color: #9ec6b7;
   --panel-color: #123f2d;
   --text-color: #f7f4d5;
   --border-color: #1c6a4d;
-  --accent-color: #105666;
+  --accent-color: #63939d;
+  --background-highlight: #105666;
+  --muted-text-color: rgba(247, 244, 213, 0.78);
+  --panel-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
 }
 
 body[data-color='blue'] {
   --main-color: #12284b;
-  --panel-color: #1b3a69;
+  --panel-color: #354e75;
   --text-color: #fff8e7;
   --border-color: #5f8db8;
-  --accent-color: #8cc1e9;
+  --accent-color: #eff8ff;
+  --background-highlight: #234d86;
+  --muted-text-color: rgba(255, 248, 231, 0.8);
+  --panel-shadow: 0 16px 34px rgba(0, 0, 0, 0.2);
 }
 
 body[data-color='pink'] {
@@ -35,23 +48,33 @@ body[data-color='pink'] {
   --panel-color: #f8d2db;
   --text-color: #5d1622;
   --border-color: #d47b8d;
-  --accent-color: #9e182b;
+  --accent-color: #9e1871;
+  --background-highlight: #f2e0d2;
+  --muted-text-color: rgba(93, 22, 34, 0.74);
+  --panel-shadow: 0 16px 34px rgba(93, 22, 34, 0.12);
 }
 
 body[data-theme='dark'] {
   --panel-color: rgba(0, 0, 0, 0.22);
   --border-color: rgba(255, 255, 255, 0.2);
+  --panel-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
 }
 
 body[data-theme='light'] {
   --panel-color: #ffffff;
-  color: black;
 }
 
 button,
 select,
 input {
   font: inherit;
+}
+
+body h1,
+body h2,
+body h3,
+body p {
+  margin-top: 0;
 }
 
 button {
@@ -63,10 +86,24 @@ button {
   cursor: pointer;
 }
 
+button:hover {
+  border-color: var(--accent-color);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
 main.home-shell {
   max-width: 900px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 32px 24px 48px;
+  width: 100%;
 }
 
 .topbar {
@@ -74,7 +111,12 @@ main.home-shell {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.topbar h1 {
+  font-size: clamp(2rem, 4vw, 2.6rem);
+  line-height: 1.05;
 }
 
 .topbar-actions,
@@ -87,13 +129,24 @@ main.home-shell {
 .panel {
   background: var(--panel-color);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 18px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(10px);
 }
 
 .hero-panel {
   text-align: center;
+  padding: 32px 24px;
+}
+
+.hero-panel p,
+.track-card p,
+.stat-item span,
+.settings-grid label,
+[role='status'] {
+  color: var(--muted-text-color);
 }
 
 .settings-grid {
@@ -102,13 +155,35 @@ main.home-shell {
   max-width: 280px;
 }
 
+select,
+input {
+  border: 1px solid var(--border-color);
+  background: var(--panel-color);
+  color: var(--text-color);
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
 .track-card {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+}
+
+.tracks {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.tracks:first-of-type {
+  border-top: none;
+  padding-top: 0;
 }
 
 .album-art {
   border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
 }
 
 .stats-grid {
@@ -119,7 +194,7 @@ main.home-shell {
 .stat-item {
   display: grid;
   gap: 4px;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -129,7 +204,28 @@ main.home-shell {
   border-color: var(--accent-color);
 }
 
-body{
-    display: flex;
-    justify-content: center;
+@media (max-width: 640px) {
+  main.home-shell {
+    padding: 20px 14px 32px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .topbar-actions,
+  .mode-switch {
+    width: 100%;
+  }
+
+  .topbar-actions button,
+  .mode-switch button {
+    flex: 1 1 0;
+  }
+
+  .hero-panel,
+  .panel {
+    padding: 16px;
+  }
 }

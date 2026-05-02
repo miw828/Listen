@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'; //
 import Home from './Home.jsx';
 import {
   getFrontendConfigError,
@@ -11,10 +11,9 @@ import {
 import { syncProfileFromSession } from '../supabase.js';
 import './App.css';
 
-// App manages the Spotify connection state and passes auth actions down to the home screen.
 export default function App() {
-  const initialConfigError = getFrontendConfigError();
-  const setupInstructions = getSpotifySetupInstructions();
+  const initialConfigError = getFrontendConfigError(); // will check if environment variables are there
+  const setupInstructions = getSpotifySetupInstructions(); //
   const [session, setSession] = useState(null);
   const [status, setStatus] = useState(
     initialConfigError ? `${initialConfigError} ${setupInstructions.join(' ')}` : ''
@@ -27,7 +26,6 @@ export default function App() {
       return undefined;
     }
 
-    // loadSession restores an existing Supabase session and syncs the matching profile record.
     async function loadSession() {
       try {
         const currentSession = await getCurrentSession();

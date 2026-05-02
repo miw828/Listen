@@ -334,3 +334,16 @@ export const saveTrackToSpotifyLibrary = async (trackId) => {
     method: 'PUT'
   });
 };
+
+// fetchSavedTracks returns tracks currently saved in the connected Spotify library.
+export const fetchSavedTracks = async (limit = 50) => {
+  const data = await spotifyFetch(`/me/tracks?limit=${limit}`);
+  return data?.items ?? [];
+};
+
+// removeTrackFromSpotifyLibrary deletes a track from the connected Spotify library.
+export const removeTrackFromSpotifyLibrary = async (trackId) => {
+  await spotifyFetch(`/me/tracks?ids=${encodeURIComponent(trackId)}`, {
+    method: 'DELETE'
+  });
+};
